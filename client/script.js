@@ -7,31 +7,31 @@ const chatContainer = document.querySelector('#chat_container');
 let loadInterval;
 
 function loader(element) {
-  console.log(element)
-  element.textContent = '';
+  element.textContent = ''
 
   loadInterval = setInterval(() => {
-    element.textContent += '.';
+      // Update the text content of the loading indicator
+      element.textContent += '.';
 
-    if(element.textContent === '....') {
-      element.textContent = '';
-    }
+      // If the loading indicator has reached three dots, reset it
+      if (element.textContent === '....') {
+          element.textContent = '';
+      }
   }, 300);
 }
 
 function typeText(element, text) {
-  let index = 0;
+  let index = 0
 
   let interval = setInterval(() => {
-    if(index < text.length) {
-      element.innerHtml += text.charAt(index);
-      index++;
-    } else {
-      clearInterval(interval)
-    }
-    
-  }, 20);
-};
+      if (index < text.length) {
+          element.innerHTML += text.charAt(index)
+          index++
+      } else {
+          clearInterval(interval)
+      }
+  }, 20)
+}
 
 // generate unique ID for each message div of bot
 // necessary for typing text effect for that specific reply
@@ -44,20 +44,21 @@ function generateUniqueId() {
   return `id-${timestamp}-${hexStr}`;
 }
 
-function chatStripe (isAi, value, uniqueId) {
+function chatStripe(isAi, value, uniqueId) {
   return (
-    `
+      `
       <div class="wrapper ${isAi && 'ai'}">
-        <div class="chat">
-          <div class="profile">
-          <img
-            src="${isAi ? bot : user}"
-            alt="${isAi ? 'bot' : 'user'}"
-          />
-        </div>
-        <div class="message" id=${uniqueId}>${value}</div>
+          <div class="chat">
+              <div class="profile">
+                  <img 
+                    src=${isAi ? bot : user} 
+                    alt="${isAi ? 'bot' : 'user'}" 
+                  />
+              </div>
+              <div class="message" id=${uniqueId}>${value}</div>
+          </div>
       </div>
-    `
+  `
   )
 }
 
@@ -65,9 +66,10 @@ const handleSubmit = async (e) => {
   e.preventDefault();
   const data = new FormData(form);
   const uniqId = generateUniqueId();
+  const prompt = data.get('prompt');
 
   // user's chatstripe
-  chatContainer.innerHTML += chatStripe(false, data.get('prompt'), `u${uniqId}`);
+  chatContainer.innerHTML += chatStripe(false, prompt, `u${uniqId}`);
   form.reset();
 
   // bot's chatstripe  
@@ -78,6 +80,30 @@ const handleSubmit = async (e) => {
   const messageDiv = document.getElementById(`b${uniqId}`);
 
   loader(messageDiv);
+  // fetch data from server -> bot's response
+
+  const response = await fetch('http://localhost:5000', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ prompt })
+  });
+
+  clearInterval(loadInterval);
+  messageDiv.innerHTML = '';
+
+  if(response.ok) {
+    const data = await response.json();
+    const parsedData = data.bot.trim();
+    console.log(parsedData);
+
+    typeText(messageDiv, parsedData);
+  } else {
+    const err = await response.text();
+    messageDiv.innerHTML = 'Something went wrong';
+    alert(err);
+  }
 }
 
 form.addEventListener('submit', handleSubmit);
